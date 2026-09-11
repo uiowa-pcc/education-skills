@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="en">
 <head>
@@ -175,7 +174,7 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
   <section class="panel" aria-labelledby="review-title">
     <div class="step-label"><span class="step-number">3</span> Decide</div>
     <h2 id="review-title">Which power verbs fit?</h2>
-    <p class="section-copy">Based on what you selected, these Iowa career-readiness competencies may fit. Under each one, choose power verbs that accurately describe what you did.</p>
+    <p class="section-copy">Based on what you selected, these Iowa career-readiness competencies may fit. Under each one, choose from transferable power verbs and education-specific power verbs that accurately describe what you did.</p>
     <p class="manual-note" id="manualNote" hidden>Because you added something not covered by the prompts, all eight competencies are available to browse below. Suggested matches still appear first.</p>
     <div id="compEmpty" class="empty">Select what you did above to see possible skills.</div>
     <div class="comp-grid" id="compGrid"></div>
@@ -217,42 +216,50 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
     career: {
       name: 'Career & Self-Development',
       desc: 'Growing through learning, feedback, self-awareness, career exploration, and goal setting.',
-      skills: ['Developed','Evaluated','Identified','Planned','Prioritized','Researched','Revised','Strategized']
+      skills: ['Developed','Evaluated','Identified','Planned','Prioritized','Researched','Revised','Strategized'],
+      educationSkills: ['Reflected','Applied','Incorporated','Improved','Prepared','Designed']
     },
     communication: {
       name: 'Communication',
       desc: 'Exchanging information and ideas clearly and effectively with others.',
-      skills: ['Addressed','Clarified','Communicated','Consulted','Explained','Informed','Presented','Summarized']
+      skills: ['Addressed','Clarified','Communicated','Consulted','Explained','Informed','Presented','Summarized'],
+      educationSkills: ['Taught','Instructed','Modeled','Facilitated','Engaged','Conferenced']
     },
     critical: {
       name: 'Critical Thinking',
       desc: 'Analyzing information and context to make decisions, solve problems, and respond to needs.',
-      skills: ['Analyzed','Assessed','Determined','Evaluated','Investigated','Recommended','Resolved','Solved']
+      skills: ['Analyzed','Assessed','Determined','Evaluated','Investigated','Recommended','Resolved','Solved'],
+      educationSkills: ['Differentiated','Adjusted','Monitored','Measured','Scaffolded','Adapted']
     },
     perspectives: {
       name: 'Other Perspectives',
       desc: 'Seeking, valuing, and thoughtfully considering perspectives different from your own.',
-      skills: ['Adapted','Consulted','Interpreted','Mediated','Negotiated','Supported','Welcomed','Cooperated']
+      skills: ['Adapted','Consulted','Interpreted','Mediated','Negotiated','Supported','Welcomed','Cooperated'],
+      educationSkills: ['Differentiated','Accommodated','Scaffolded','Individualized','Supported','Included']
     },
     leadership: {
       name: 'Leadership',
       desc: 'Using strengths to guide, motivate, support, and move work toward shared goals.',
-      skills: ['Directed','Encouraged','Guided','Initiated','Led','Managed','Mentored','Trained']
+      skills: ['Directed','Encouraged','Guided','Initiated','Led','Managed','Mentored','Trained'],
+      educationSkills: ['Facilitated','Modeled','Reinforced','Cultivated','Motivated','Established']
     },
     professionalism: {
       name: 'Professionalism',
       desc: 'Using dependable, accountable, ethical, and effective work habits.',
-      skills: ['Completed','Handled','Implemented','Maintained','Organized','Prepared','Prioritized','Tracked']
+      skills: ['Completed','Handled','Implemented','Maintained','Organized','Prepared','Prioritized','Tracked'],
+      educationSkills: ['Planned','Documented','Implemented','Reflected','Maintained','Prepared']
     },
     teamwork: {
       name: 'Teamwork',
       desc: 'Building collaborative relationships and sharing responsibility to reach common goals.',
-      skills: ['Collaborated','Contributed','Coordinated','Cooperated','Facilitated','Supported','Assisted','Mediated']
+      skills: ['Collaborated','Contributed','Coordinated','Cooperated','Facilitated','Supported','Assisted','Mediated'],
+      educationSkills: ['Partnered','Consulted','Coordinated','Collaborated','Communicated','Contributed']
     },
     technology: {
       name: 'Technology',
       desc: 'Using and adapting to technology effectively and ethically to complete work and solve problems.',
-      skills: ['Programmed','Installed','Operated','Updated','Debugged','Streamlined','Converted','Tracked']
+      skills: ['Programmed','Installed','Operated','Updated','Debugged','Streamlined','Converted','Tracked'],
+      educationSkills: ['Integrated','Utilized','Created','Implemented','Designed','Adapted']
     }
   };
 
@@ -420,7 +427,7 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
       if(Array.isArray(saved)){
         recentExperiences = saved
           .filter(item => item && typeof item.experienceName === 'string' && item.experienceName.trim())
-          .slice(-6)
+          .slice()
           .reverse();
       }
     }catch(e){
@@ -615,21 +622,28 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
         const browseHelp=document.createElement('p'); browseHelp.className='other-action-help'; browseHelp.textContent='Not automatically suggested. Choose this if your additional action is evidence of this competency.';
         body.appendChild(browseHelp);
       }
-      const skLabel=document.createElement('div'); skLabel.className='skills-label'; skLabel.textContent='power verbs that may fit — choose what is accurate';
-      const chips=document.createElement('div'); chips.className='skill-chips';
-      const skills=[...new Set([...suggestedSkills,...c.skills])].slice(0,8);
-      skills.forEach(skill=>{
-        const sb=document.createElement('button'); sb.type='button'; sb.className='skill-chip'; sb.textContent=skill;
-        sb.setAttribute('aria-pressed',String(chosenSkills[key].has(skill)));
-        sb.addEventListener('click',()=>{
-          if(chosenSkills[key].has(skill)) chosenSkills[key].delete(skill); else chosenSkills[key].add(skill);
+      const addVerbGroup=(label,skills)=>{
+        if(!skills.length)return;
+        const skLabel=document.createElement('div'); skLabel.className='skills-label'; skLabel.textContent=label;
+        const chips=document.createElement('div'); chips.className='skill-chips';
+        skills.forEach(skill=>{
+          const sb=document.createElement('button'); sb.type='button'; sb.className='skill-chip'; sb.textContent=skill;
           sb.setAttribute('aria-pressed',String(chosenSkills[key].has(skill)));
-          if(chosenSkills[key].size && !chosenCompetencies.has(key)){chosenCompetencies.add(key); cb.checked=true;}
-          updateBuildButton();
+          sb.addEventListener('click',()=>{
+            if(chosenSkills[key].has(skill)) chosenSkills[key].delete(skill); else chosenSkills[key].add(skill);
+            sb.setAttribute('aria-pressed',String(chosenSkills[key].has(skill)));
+            if(chosenSkills[key].size && !chosenCompetencies.has(key)){chosenCompetencies.add(key); cb.checked=true;}
+            updateBuildButton();
+          });
+          chips.appendChild(sb);
         });
-        chips.appendChild(sb);
-      });
-      body.append(skLabel,chips); card.append(head,body); compGrid.appendChild(card);
+        body.append(skLabel,chips);
+      };
+      const transferable=[...new Set([...suggestedSkills,...c.skills])].slice(0,8);
+      const education=[...new Set(c.educationSkills||[])].filter(skill=>!transferable.includes(skill)).slice(0,6);
+      addVerbGroup('Transferable power verbs',transferable);
+      addVerbGroup('Education-specific power verbs',education);
+      card.append(head,body); compGrid.appendChild(card);
     });
     updateBuildButton();
   }
