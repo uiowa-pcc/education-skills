@@ -141,10 +141,11 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
     <div class="step-label"><span class="step-number">1</span> Choose</div>
     <h2 id="experience-title">What experience are you thinking about?</h2>
     <p class="section-copy">Focus on one experience at a time. You can repeat the activity with another experience later.</p>
-    <div class="recent-wrap" id="recentWrap" hidden>
+    <div class="recent-wrap" id="recentWrap">
       <div class="recent-label">Use a recent experience</div>
       <div class="recent-list" id="recentList" aria-label="Recent experiences"></div>
-      <p class="recent-note">These appear only when recent work from the Experience Brainstorm is available on this device. You can still enter something different below.</p>
+      <p class="recent-note" id="recentStatus">Looking for experiences you already added in the educator resume tools…</p>
+      <button class="btn small soft" id="refreshRecent" type="button">Refresh experiences</button>
     </div>
     <div class="field">
       <label for="experienceName">Experience, role, project, or responsibility</label>
@@ -346,6 +347,8 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
   const suggestionCopy = document.getElementById('suggestionCopy');
   const recentWrap = document.getElementById('recentWrap');
   const recentList = document.getElementById('recentList');
+  const recentStatus = document.getElementById('recentStatus');
+  const refreshRecent = document.getElementById('refreshRecent');
   const filters = document.getElementById('filters');
   const moreActions = document.getElementById('moreActions');
   const moreActionsBtn = document.getElementById('moreActionsBtn');
@@ -437,54 +440,74 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
     updateSuggestions();
   }
 
+  function safeStoredJson(key, fallback=null){
+    try{
+      const raw=localStorage.getItem(key);
+      return raw===null?fallback:JSON.parse(raw);
+    }catch(e){return fallback;}
+  }
+
   function loadRecentExperiences(){
     const merged=[];
     const seen=new Set();
-    const add=(item={})=>{
-      const experienceName=String(item.experienceName||item.title||'').trim();
+    const add=(raw,source='saved')=>{
+      if(!raw || typeof raw!=='object')return;
+      const item=raw.experience && typeof raw.experience==='object'?raw.experience:raw;
+      const experienceName=String(item.experienceName||item.title||item.role||item.name||'').trim();
       if(!experienceName)return;
-      const context=String(item.context||item.org||item.organization||item.district||'').trim();
+      const context=String(item.context||item.org||item.organization||item.school||item.setting||item.district||'').trim();
       const key=`${normalizeText(experienceName)}|${normalizeText(context)}`;
       if(seen.has(key))return;
       seen.add(key);
       merged.push({
-        id:item.id||`exp-${merged.length}`,
+        id:String(item.id||item.sourceBrainstormId||`${source}-${merged.length}`),
         experienceName,
         context,
-        sourceCategory:item.sourceCategory||'',
-        section:item.section||''
+        sourceCategory:item.sourceCategory||item.category||'',
+        section:item.section||item.resumeSection||'',
+        source
       });
     };
+    const addArray=(value,source)=>{if(Array.isArray(value))value.forEach(item=>add(item,source));};
+
+    // Current educator Experience Brainstorm.
+    addArray(safeStoredJson(EXPERIENCE_BANK_KEY,[]),'brainstorm');
+
+    // Current educator Resume Builder. Support both direct and wrapped saved-data shapes.
+    const builder=safeStoredJson(BUILDER_KEY,null);
+    if(builder&&typeof builder==='object'){
+      addArray(builder.experiences,'resume builder');
+      if(builder.data&&typeof builder.data==='object')addArray(builder.data.experiences,'resume builder');
+    }
+
+    // Compatibility scan for earlier educator-tool keys. Only inspect UIowa education/resume keys
+    // and only collect objects that actually look like experiences.
     try{
-      const saved=JSON.parse(localStorage.getItem(EXPERIENCE_BANK_KEY)||'[]');
-      if(Array.isArray(saved)) saved.slice().reverse().forEach(add);
-    }catch(e){}
-    try{
-      const builder=JSON.parse(localStorage.getItem(BUILDER_KEY)||'null');
-      if(builder&&Array.isArray(builder.experiences)){
-        builder.experiences.slice().reverse().forEach(exp=>{
-          if(!exp || !(exp.title||'').trim())return;
-          add({
-            id:exp.id||'',
-            experienceName:exp.title,
-            context:[exp.org,exp.district].filter(Boolean).join(' — '),
-            sourceCategory:(exp.section||'').toLowerCase().includes('teaching')?'teaching':'',
-            section:exp.section||''
-          });
-        });
+      for(let i=0;i<localStorage.length;i++){
+        const key=localStorage.key(i)||'';
+        if(!/^uiowa/i.test(key) || !/(education|resume|experience)/i.test(key))continue;
+        if([EXPERIENCE_BANK_KEY,BUILDER_KEY,SKILLS_BANK_KEY].includes(key))continue;
+        const value=safeStoredJson(key,null);
+        if(Array.isArray(value)) addArray(value,'earlier educator tool');
+        else if(value&&typeof value==='object'){
+          addArray(value.experiences,'earlier educator tool');
+          if(value.data&&typeof value.data==='object')addArray(value.data.experiences,'earlier educator tool');
+        }
       }
     }catch(e){}
+
     recentExperiences=merged;
     renderRecentExperiences();
   }
 
   function renderRecentExperiences(){
     recentList.innerHTML='';
+    recentWrap.hidden=false;
     if(!recentExperiences.length){
-      recentWrap.hidden=true;
+      recentStatus.textContent='No recent educator experiences were found in this browser yet. You can still type an experience below.';
       return;
     }
-    recentWrap.hidden=false;
+    recentStatus.textContent=`Found ${recentExperiences.length} recent experience${recentExperiences.length===1?'':'s'} from your educator resume tools. Choose one to use it here.`;
     recentExperiences.forEach((exp,index)=>{
       const b=document.createElement('button');
       b.type='button';
@@ -805,7 +828,10 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
   printBtn.addEventListener('click',()=>window.print());
   resetBtn.addEventListener('click',reset);
 
+  refreshRecent.addEventListener('click',loadRecentExperiences);
   window.addEventListener('focus',loadRecentExperiences);
+  window.addEventListener('storage',loadRecentExperiences);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadRecentExperiences()});
   loadRecentExperiences(); renderFilters(); renderTasks(); updateSuggestions(); showStep(1,false); updateStepButtons();
 })();
 </script>
