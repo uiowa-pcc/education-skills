@@ -862,7 +862,7 @@ input[type="text"]{width:100%;min-height:46px;border:1.5px solid #B8B8B8;border-
 
   experienceNext.addEventListener('click',()=>{
     if(!experienceName.value.trim())return;
-    const selected=currentSelectedExperience();
+    const selected=selectedRecentExperience();
     upsertSharedExperience({
       id:selected?.id||'',
       experienceName:experienceName.value.trim(),
